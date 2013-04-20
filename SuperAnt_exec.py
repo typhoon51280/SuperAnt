@@ -1,4 +1,7 @@
-import sublime, sublime_plugin, sys,os
+import sublime
+import sublime_plugin
+import sys
+import os
 from xml.dom.minidom import parseString
 
 DEFAULT_BUILD_CMD = "exec"
@@ -7,78 +10,78 @@ DEFAULT_BUILD_TASK = "build"
 
 class SuperAntExecCommand(sublime_plugin.WindowCommand):
     def run(self, **kwargs):
-        package_dir = os.path.join(sublime.packages_path(), "Super Ant");
-        
-        self.working_dir = kwargs['working_dir'];
-        self.build = None;
+        package_dir = os.path.join(sublime.packages_path(), "Super Ant")
 
-        s = sublime.load_settings("SuperAnt.sublime-settings");
-        build_file = s.get("build_file", "build.xml");
-        use_sorting = s.get("use_sorting", "true") == "true";
+        self.working_dir = kwargs['working_dir']
+        self.build = None
 
-        # buildfile by selection: search build file in project folder that file from active view is in  
+        s = sublime.load_settings("SuperAnt.sublime-settings")
+        build_file = s.get("build_file", "build.xml")
+        use_sorting = s.get("use_sorting", "true") == "true"
+
+        # buildfile by selection: search build file in project folder that file from active view is in
         try:
-            active_file = self.window.active_view().file_name();
-            active_folder = os.path.dirname(active_file);
+            active_file = self.window.active_view().file_name()
+            active_folder = os.path.dirname(active_file)
             if os.path.exists(active_folder + os.sep + build_file):
-                self.build = active_folder + os.sep + build_file;
+                self.build = active_folder + os.sep + build_file
                 self.working_dir = active_folder
             else:
-                raise Exception('not a build file');
+                raise Exception('not a build file')
         except Exception as ex:
-            print 'No build file in base folder of currently viewed file';
+            print('No build file in base folder of currently viewed file')
 
         # buildfile by default: build.xml found in first project folder
-        if self.build == None and os.path.exists(self.working_dir + os.sep + build_file):
-            self.build = self.working_dir + os.sep + build_file;
+        if self.build is None and os.path.exists(self.working_dir + os.sep + build_file):
+            self.build = self.working_dir + os.sep + build_file
 
         try:
-            f = open(self.build);
+            f = open(self.build)
         except Exception as ex:
-            print ex;
-            self.window.open_file(os.path.join(package_dir, 'SuperAnt.sublime-settings'));
-            return 'The file could not be opened';
-    
-        self.working_dir = os.path.dirname(self.build);
+            print(ex)
+            self.window.open_file(os.path.join(package_dir, 'SuperAnt.sublime-settings'))
+            return 'The file could not be opened'
 
-        data = f.read();
-        dom = parseString(data);
-        self.targets = dom.getElementsByTagName('target');
+        self.working_dir = os.path.dirname(self.build)
+
+        data = f.read()
+        dom = parseString(data)
+        self.targets = dom.getElementsByTagName('target')
 
         # get project name for target prefixing in quick panel
-        project_name = None;
+        project_name = None
         try:
-            project_name = dom.firstChild.getAttributeNode('name').nodeValue;
-        except Exception, e:
+            project_name = dom.firstChild.getAttributeNode('name').nodeValue
+        except Exception:
             # default to folder name if name attribute is not given in project tag
-            project_name = os.path.basename(self.working_dir);
+            project_name = os.path.basename(self.working_dir)
 
-        self.targetsList = [];
-        list_prefix = project_name + ': ';
+        self.targetsList = []
+        list_prefix = project_name + ': '
         for target in self.targets:
-            targetName = target.getAttributeNode("name").nodeValue;
+            targetName = target.getAttributeNode("name").nodeValue
             if targetName[0] != "_":
-                self.targetsList.append(list_prefix + targetName);
+                self.targetsList.append(list_prefix + targetName)
 
         if use_sorting:
-            self.targetsList = sorted(self.targetsList);
+            self.targetsList = sorted(self.targetsList)
 
         def cleanName(n):
-            return n.replace(list_prefix, "");
-        
+            return n.replace(list_prefix, "")
+
         self.targetLookup = map(cleanName, self.targetsList)
 
-        self.window.show_quick_panel(self.targetsList, self._quick_panel_callback);
+        self.window.show_quick_panel(self.targetsList, self._quick_panel_callback)
 
     def _quick_panel_callback(self, index):
 
         if (index > -1):
-            targetName = self.targetLookup[index];
-            
-            ant = "ant";
+            targetName = self.targetLookup[index]
+
+            ant = "ant"
             # Check for Windows Overrides and Merge
             if sys.platform.startswith('win32'):
-                ant = "ant.bat";
+                ant = "ant.bat"
 
             cmd = {
                 'cmd': [ant, "-f", self.build, targetName],
@@ -86,4 +89,4 @@ class SuperAntExecCommand(sublime_plugin.WindowCommand):
             }
 
             # run build
-            self.window.run_command("exec", cmd);
+            self.window.run_command("exec", cmd)
